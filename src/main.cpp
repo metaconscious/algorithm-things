@@ -49,12 +49,6 @@ int main()
     // alias
     using Array = algo::Array<int>;
     using ArrayPair = algo::ArrayPair<int>;
-    using DacTimer = algo::Timer<Array,
-            Array, std::function<ArrayPair(const Array&)>, std::function<Array(const ArrayPair&)>>;
-    using BsTimer = algo::Timer<Array, const Array&>;
-    using BsiTimer = algo::Timer<void, Array&>;
-    using IsiTimer = algo::Timer<void, Array&>;
-    using SsiTimer = algo::Timer<void, Array&>;
     // initial
     Array integers(100000);
     std::iota(integers.begin(), integers.end(), 1);
@@ -66,23 +60,24 @@ int main()
     std::mt19937 mersenneTwister{ seeds };
     std::ranges::shuffle(integers, mersenneTwister);
 
-    DacTimer dac{ algo::divideAndConquer<int> };
-    Array&& mergeSorted{ dac(integers, algo::partition<int>, algo::merge<int>) };
+    algo::Timer dac{ algo::divideAndConquer<int>, integers, algo::partition<int>, algo::merge<int> };
+    Array&& mergeSorted{ dac.time() };
 
-    BsTimer bs{ algo::bubbleSort<int> };
-    Array&& bubbleSorted{ bs(integers) };
+    algo::Timer bs{ algo::bubbleSort<int>, integers };
+    Array&& bubbleSorted{ bs.time() };
 
-    Array bubbleInplaceSorted{ integers.cbegin(), integers.cend() };
-    BsiTimer bsi{ algo::inp::bubbleSort<int> };
-    bsi(bubbleInplaceSorted);
+    Array bubbleInplaceSorted{};
+    std::copy(integers.cbegin(), integers.cend(), std::back_inserter(bubbleInplaceSorted));
+    algo::Timer bsi{ algo::inp::bubbleSort<int>, bubbleInplaceSorted };
+    bsi.time();
 
     Array insertionInplaceSorted{ integers.cbegin(), integers.cend() };
-    IsiTimer isi{ algo::inp::insertionSort<int> };
-    isi(insertionInplaceSorted);
+    algo::Timer isi{ algo::inp::insertionSort<int>, insertionInplaceSorted };
+    isi.time();
 
     Array selectionInplaceSorted{ integers.cbegin(), integers.cend() };
-    SsiTimer ssi{ algo::inp::selectionSort<int> };
-    ssi(selectionInplaceSorted);
+    algo::Timer ssi{ algo::inp::selectionSort<int>, selectionInplaceSorted };
+    ssi.time();
 
     std::cout
             << "Unsorted Array: "

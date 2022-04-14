@@ -3,11 +3,13 @@
 
 #include <chrono>
 #include <functional>
+#include <tuple>
 #include <utility>
+#include <variant>
 
 namespace algo
 {
-    template<typename R, typename... Args>
+    template<typename Function, typename... Args>
     class Timer
     {
     public:
@@ -16,66 +18,43 @@ namespace algo
         using time_point = std::chrono::time_point<clock_type>;
 
     private:
-        std::function<R(Args...)> m_executor;
+        Function m_executor;
+        std::tuple<Args...> m_args;
         double m_second;
 
-    public:
-        explicit Timer(std::function<R(Args...)> executor) : m_executor{ executor }, m_second{}
-        {
-        }
-
-        Timer(const Timer&) = delete;
-        Timer(Timer&&) = delete;
-        Timer& operator=(const Timer&) = delete;
-        Timer& operator=(Timer&&) = delete;
-
-        R operator()(Args... args)
+        auto timeWithReturn() -> decltype(std::apply(m_executor, m_args))
         {
             time_point begin{ clock_type::now() };
-            auto result{ m_executor(std::forward<Args>(args)...) };
-            m_second = std::chrono::duration_cast<duration_type>(clock_type::now() - begin).count();
+            auto result{ std::apply(m_executor, m_args) };
+            m_second = std::chrono::duration_cast<duration_type>(clock_type::now() - begin)
+                .count();
             return result;
         }
 
-        [[nodiscard]] double getLastTime() const
-        {
-            return m_second;
-        }
-
-        void reset()
-        {
-            m_second = 0.0;
-        }
-
-    };
-
-    template<typename... Args>
-    class Timer<void, Args...>
-    {
-    public:
-        using clock_type = std::chrono::steady_clock;
-        using duration_type = std::chrono::duration<double, std::ratio<1>>;
-        using time_point = std::chrono::time_point<clock_type>;
-
-    private:
-        std::function<void(Args...)> m_executor;
-        double m_second;
-
-    public:
-        explicit Timer(std::function<void(Args...)> executor) : m_executor{ executor }, m_second{}
-        {
-        }
-
-        Timer(const Timer&) = delete;
-        Timer(Timer&&) = delete;
-        Timer& operator=(const Timer&) = delete;
-        Timer& operator=(Timer&&) = delete;
-
-        void operator()(Args... args)
+        void timeWithoutReturn()
         {
             time_point begin{ clock_type::now() };
-            m_executor(std::forward<Args>(args)...);
-            m_second = std::chrono::duration_cast<duration_type>(clock_type::now() - begin).count();
+            std::apply(m_executor, m_args);
+            m_second = std::chrono::duration_cast<duration_type>(clock_type::now() - begin)
+                .count();
+        }
+
+    public:
+        explicit Timer(Function executor, Args... args)
+        : m_executor{ executor }, m_args{ args... }, m_second{}
+        {
+        }
+
+        auto time() -> decltype(auto)
+        {
+            if constexpr(std::is_void_v<decltype(std::apply(m_executor, m_args))>)
+            {
+                timeWithoutReturn();
+            }
+            else
+            {
+                return timeWithReturn();
+            }
         }
 
         [[nodiscard]] double getLastTime() const
@@ -89,8 +68,6 @@ namespace algo
         }
 
     };
-
-
 }
 
 #endif // ALGORITHM_THINGS_TIMER_H
